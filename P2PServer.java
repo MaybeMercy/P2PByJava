@@ -12,7 +12,7 @@ import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 public class P2PServer {
 	private ServerSocket ss;
 	private Socket socket;
-	public static int SERVER_PORT = 10000;
+	public static int SERVER_PORT = 10001;
 	public static String IP = "IP";
 	public static String PORT = "PORT";
 	public static String NICKNAME = "NAME";
@@ -26,7 +26,7 @@ public class P2PServer {
 	
 	public P2PServer(){
 		try{
-			ss = new ServerSocket(10000);
+			ss = new ServerSocket(SERVER_PORT);
 			System.out.println("server start");
 			while (true) {
 				socket = ss.accept();
@@ -60,14 +60,11 @@ public class P2PServer {
 				String line;
 				line = in.readLine();
 				String[] infor = line.split("#");
-				if (infor.length == 3) {
-					indentifer = new HashMap<>();
-					indentifer.put(NICKNAME, infor[0]);
-					indentifer.put(IP, infor[1]);
-					indentifer.put(PORT, infor[2]);
-					User_List.add(indentifer);
-					System.out.println(infor[0] + "  " + infor[1] + "  " + infor[2] + "  connect success");
+				if (infor.length == 3 && addToList(infor)) {
+					out.println("you has loged in successfully");
 				}else {
+					System.out.println("some one try to connect bu refused");
+					out.println("your request is rejected");
 					connect_success = false;
 				}
 				
@@ -79,8 +76,9 @@ public class P2PServer {
 					}
 					else if (line.equals("ls")) {
 						out.println(listAllUsers());
-					}else {
-						out.println("don't know what you input");
+					}
+					else {
+						out.println("input \"ls\" to list online or \"exit\" to exit");
 					}
 				}
 				out.close();
@@ -92,9 +90,23 @@ public class P2PServer {
 			}				
 		}
 		
+		public boolean addToList(String[] infor){
+			indentifer = new HashMap<>();
+			indentifer.put(NICKNAME, infor[0]);
+			indentifer.put(IP, infor[1]);
+			indentifer.put(PORT, infor[2]);
+			if (User_List.contains(indentifer)) {
+				return false;
+			}else {
+				User_List.add(indentifer);
+				System.out.println(infor[0] + "  " + infor[1] + "  " + infor[2] + "  connect success");
+				return true;
+			}
+		}
+		
 		public void removeFromList(){
 			if (indentifer != null) {
-				out.println(indentifer.get(NICKNAME) + "  " + indentifer.get(IP) + "  " + indentifer.get(PORT) + "  out line");
+				System.out.println(indentifer.get(NICKNAME) + "  " + indentifer.get(IP) + "  " + indentifer.get(PORT) + "  out line");
 				User_List.remove(indentifer);
 			}
 		}
@@ -112,7 +124,7 @@ public class P2PServer {
 				s += infor_map.get(IP) + "  ";
 				s += infor_map.get(PORT) + "\n";
 			}
-			s += "-------------------";
+			s += "-----------------";
 			return s;
 		}
 		
