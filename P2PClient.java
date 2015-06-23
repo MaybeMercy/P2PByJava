@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -9,6 +10,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.sql.ResultSet;
+import java.text.BreakIterator;
+import java.util.Arrays;
 
 public class P2PClient {
 	private Socket socket;
@@ -17,6 +22,7 @@ public class P2PClient {
 	private BufferedReader line;
 	private boolean connect_success = true;
 	private FileReceive file_receive;
+	private String nickName;
 	
 	public static void main(String[] args){
 		new P2PClient();
@@ -41,6 +47,7 @@ public class P2PClient {
 					String[] infor = tell.split("#");
 					if (infor.length == 2 && Integer.parseInt(infor[1]) > 0 && Integer.parseInt(infor[1]) < 65535) {
 						out.println(infor[0]+"#"+ip+"#"+infor[1]);
+						nickName = infor[0];
 						System.out.println(in.readLine());
 						file_receive = new FileReceive(Integer.parseInt(infor[1])); // open the file receiver
 						break;
@@ -66,15 +73,14 @@ public class P2PClient {
 					continue;
 				}
 				else {
-					
+					out.println(tell);
+					int count = in.read(temp);
+					if (count == -1) {
+						break;
+					}
+					msg = String.valueOf(temp, 0, count);
+					System.out.print(msg); // read the byde can read the /n, so no need println any more
 				}
-				out.println(tell);
-				int count = in.read(temp);
-				if (count == -1) {
-					break;
-				}
-				msg = String.valueOf(temp, 0, count);
-				System.out.print(msg); // read the byde can read the /n, so no need println any more
 			}
 			line.close();
 			out.close();
@@ -88,18 +94,45 @@ public class P2PClient {
 	
 	public void sendFile(){
 		try {
-			System.out.println("input the file path");
-			String path = line.readLine();
-			System.out.println("input ip address and port");
-			String[] infor = line.readLine().split("#");
-			String ip = infor[0];
-			String port = infor[1];
+			File file;
+			String fileName;
+			// get the file
+			while (true) {
+				System.out.println("input the file path");
+				String path = line.readLine();
+				file = new File(path);
+				if (file.exists()) {
+					break;
+				}else {
+					System.out.println("Illegal Input");
+				}
+			}
+			// get the ip and port
+			String ip;
+			String port;
+			while (true) {
+				System.out.println("input ip address and port");
+				String[] infor = line.readLine().split("#");
+				if ( infor.length == 2 && Integer.parseInt(infor[1]) > 0 && Integer.parseInt(infor[1]) < 65535) {
+					ip = infor[0];
+					port = infor[1];
+					break;
+				}else {
+					System.out.println("Illegal input");
+				}
+			}
+			
 			
 			Socket sendFileSocket = new Socket(InetAddress.getByName(ip), Integer.parseInt(port));
 			ObjectOutputStream oos = new ObjectOutputStream(sendFileSocket.getOutputStream());
+			BufferedReader br = new BufferedReader(new InputStreamReader(sendFileSocket.getInputStream()));
+			FileInputStream fis = new FileInputStream(file);
 			
-			FileInputStream fis = new FileInputStream(path);
-			System.out.println("sending file...");
+			// send file name
+			byte[] b = file.getName().getBytes();
+			oos.write(b);
+			oos.flush();			
+			System.out.println("sending...");
 			byte[] buf = new byte[1024];
 			int len = fis.read(buf);
 			while (len > 0) {
@@ -108,11 +141,17 @@ public class P2PClient {
 				Thread.sleep(50);
 				len = fis.read(buf);
 			}
-			System.out.println("file sended");
+			System.out.println("sended");
+			
+			
+			br.close();
 			fis.close();
 			oos.close();
 			sendFileSocket.close();
-		} catch (IOException e) {
+		}catch (UnknownHostException e){
+			e.printStackTrace();
+		}
+		catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InterruptedException e) {
@@ -127,7 +166,6 @@ public class P2PClient {
 		private ServerSocket ss;
 		private Socket s;
 		private int port;
-		private String pathName;
 		private boolean open_server = true;
 		
 		public FileReceive(int port){
@@ -139,23 +177,37 @@ public class P2PClient {
 		public void run() {
 			// TODO Auto-generated method stub
 			try {
-				String fileName = "receive.txt";
+				String fileName = "";
 				ss = new ServerSocket(port);
 				while (open_server) {
 					s = ss.accept();
-					System.out.println("someone attemp to send file, receiving...");
-					FileOutputStream fos = new FileOutputStream(fileName);
+					System.out.println("someone attemp to send file");
 					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
-					
+					PrintWriter pw = new PrintWriter(s.getOutputStream(), true);
 					byte[] buf = new byte[1024];
 					int len;
-					while ( (len = ois.read(buf)) != -1) {
-						fos.write(buf, 0, len);
-						fos.flush();
+			
+					// get the file name
+					if ((len = ois.read(buf)) != -1) {
+						fileName = new String(buf, 0, len);
+						String directoryName = nickName+"-receive";
+						File directoryFile = new File(directoryName);
+						if (!directoryFile.exists()) {
+							directoryFile.mkdir();
+						}						
+						FileOutputStream fos = new FileOutputStream(directoryFile+"\\"+fileName);
+						System.out.println("receiving...");
+						while ( (len = ois.read(buf)) != -1) {
+							fos.write(buf, 0, len);
+							fos.flush();
+						}
+						System.out.println("received");
+						fos.close();
+						
+					}else {
+						System.out.println("can not get the file name");
 					}
-					System.out.println("received...");
 					ois.close();
-					fos.close();
 					s.close();
 				}
 				
