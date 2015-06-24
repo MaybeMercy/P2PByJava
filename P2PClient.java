@@ -21,6 +21,8 @@ public class P2PClient {
 	private PrintWriter out;
 	private BufferedReader line;
 	private boolean connect_success = true;
+	private boolean open_server = true;
+	
 	private FileReceive file_receive;
 	private String nickName;
 	
@@ -60,8 +62,34 @@ public class P2PClient {
 				connect_success = false;
 				out.println("exit");
 			}
-			char[] temp = new char[1024];
+		
 			while (connect_success){
+				
+				new Thread(new Runnable() {
+					
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						while (open_server) {
+							char[] temp = new char[1024];
+							int count = 0;
+							try {
+								count = in.read(temp);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+								break;
+							}
+							if (count == -1) {
+								break;
+							}
+							String response = String.valueOf(temp, 0, count);
+							System.out.print(response); // read the byde can read the /n, so no need println any more
+						}
+						
+					}
+				}).start();
+				
 				tell = line.readLine();
 				if (tell.equals("exit")){
 					out.println(tell);
@@ -74,12 +102,7 @@ public class P2PClient {
 				}
 				else {
 					out.println(tell);
-					int count = in.read(temp);
-					if (count == -1) {
-						break;
-					}
-					msg = String.valueOf(temp, 0, count);
-					System.out.print(msg); // read the byde can read the /n, so no need println any more
+					
 				}
 			}
 			line.close();
@@ -95,7 +118,6 @@ public class P2PClient {
 	public void sendFile(){
 		try {
 			File file;
-			String fileName;
 			// get the file
 			while (true) {
 				System.out.println("input the file path");
@@ -166,7 +188,6 @@ public class P2PClient {
 		private ServerSocket ss;
 		private Socket s;
 		private int port;
-		private boolean open_server = true;
 		
 		public FileReceive(int port){
 			this.port = port;
@@ -183,7 +204,6 @@ public class P2PClient {
 					s = ss.accept();
 					System.out.println("someone attemp to send file");
 					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
-					PrintWriter pw = new PrintWriter(s.getOutputStream(), true);
 					byte[] buf = new byte[1024];
 					int len;
 			

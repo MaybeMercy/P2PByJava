@@ -19,6 +19,7 @@ public class P2PServer {
 	public static String WelCome_Word = "Welcome, please input your nickname#port";
 	
 	private ArrayList<HashMap<String, String>> User_List = new ArrayList<>();
+	private ArrayList<CreateServerThread> User_Thread = new ArrayList<>();
 	
 	public static void main(String[] args){
 		new P2PServer();
@@ -61,6 +62,10 @@ public class P2PServer {
 				line = in.readLine();
 				String[] infor = line.split("#");
 				if (infor.length == 3 && addToList(infor)) {
+					
+					// broadcast and add to Thread List
+					broadcast(infor[0] + "  " + infor[1] + "  " + infor[2] + "  come to line");
+					User_Thread.add(this);
 					out.println("you has loged in successfully");
 				}else {
 					System.out.println("some one try to connect bu refused");
@@ -72,13 +77,15 @@ public class P2PServer {
 					line = in.readLine();
 					if (line.equals("exit")){
 						removeFromList();
+						broadcast(infor[0] + "  " + infor[1] + "  " + infor[2] + "  off line");
+						User_Thread.remove(this);
 						break;
 					}
 					else if (line.equals("ls")) {
 						out.println(listAllUsers());
 					}
 					else {
-						out.println("input \"ls\" to list online or \"exit\" to exit");
+						out.println("input \"ls\" to list online or \"exit\" to exit or \"send file\" to send file");
 					}
 				}
 				out.close();
@@ -99,14 +106,14 @@ public class P2PServer {
 				return false;
 			}else {
 				User_List.add(indentifer);
-				System.out.println(infor[0] + "  " + infor[1] + "  " + infor[2] + "  connect success");
+				System.out.println(infor[0] + "  " + infor[1] + "  " + infor[2] + "  connect successfully");
 				return true;
 			}
 		}
 		
 		public void removeFromList(){
 			if (indentifer != null) {
-				System.out.println(indentifer.get(NICKNAME) + "  " + indentifer.get(IP) + "  " + indentifer.get(PORT) + "  out line");
+				System.out.println(indentifer.get(NICKNAME) + "  " + indentifer.get(IP) + "  " + indentifer.get(PORT) + "  disconnect successfully");
 				User_List.remove(indentifer);
 			}
 		}
@@ -114,7 +121,6 @@ public class P2PServer {
 		public void sendMessage(String msg){
 			out.println(msg);
 		}
-		
 		public String listAllUsers(){
 			String s = "-- Online list --\n";
 			HashMap<String, String> infor_map;
@@ -127,6 +133,14 @@ public class P2PServer {
 			s += "-----------------";
 			return s;
 		}
+		public void broadcast(String msg){
+			for (int i = 0; i < User_Thread.size(); i++) {
+				if (User_Thread.get(i)!=this) {
+					User_Thread.get(i).sendMessage(msg);
+				}
+			}
+		}
+		
 		
 	}
 }
